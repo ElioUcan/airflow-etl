@@ -98,8 +98,8 @@ docker-compose down -v
 | `AIRFLOW__DATABASE__SQL_ALCHEMY_CONN` | — | Full SQLAlchemy connection string for Airflow metadata |
 | `AIRFLOW__CORE__EXECUTOR` | `LocalExecutor` | Airflow executor type |
 | `AIRFLOW__CORE__FERNET_KEY` | — | Encryption key for sensitive data (**required**) |
-| `AIRFLOW_WWW_USER_USERNAME` | `admin` | Airflow UI username |
-| `AIRFLOW_WWW_USER_PASSWORD` | `admin` | Airflow UI password |
+| `AIRFLOW_WWW_USER_USERNAME` | — | Airflow UI username |
+| `AIRFLOW_WWW_USER_PASSWORD` | —| Airflow UI password |
 
 ## DAG: `coingecko_etl`
 
