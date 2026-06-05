@@ -1,133 +1,38 @@
-# ETL Airflow Pipeline — Cryptocurrency Market Data
+# ETL Pipeline — Airflow + CoinGecko
 
-An Apache Airflow-based ETL pipeline that collects daily cryptocurrency market data from the [CoinGecko API](https://www.coingecko.com/en/api) and stores it in PostgreSQL. The entire stack runs in Docker.
+## 🛠️ Technologies
+![Apache Airflow](https://img.shields.io/badge/Apache_Airflow-017CEE?style=for-the-badge&logo=apacheairflow&logoColor=white)
+![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)
+![pandas](https://img.shields.io/badge/pandas-150458?style=for-the-badge&logo=pandas&logoColor=white)
 
-## Architecture
+## ✨ Features
+- Daily ingestion of top 10 cryptocurrencies by market cap from the CoinGecko public API
+- pandas transformation: selects relevant columns and adds a `fetched_at` timestamp
+- PostgreSQL upsert keyed on `id` — safe to re-run without duplicating rows
+- Airflow DAG with 3 retries (5-minute delay) for resilience against transient API failures
+- Fully containerized with Docker Compose: Airflow scheduler, webserver, and PostgreSQL in one stack
 
-```
-CoinGecko API  →  Extract  →  Transform (pandas)  →  Load (PostgreSQL)
-                                                          ↑
-                                               Upsert on conflict (id)
-```
+## 🎯 Uses
+Automated daily cryptocurrency market data pipeline demonstrating production-grade ETL orchestration with Apache Airflow. Built as project #1 in a Data/AI/MLOps engineering portfolio — the foundation that all subsequent projects build on.
 
-The pipeline runs **daily** and fetches the top 10 cryptocurrencies by market cap (price, market cap, total volume).
+## 🔧 Process
+A single Airflow DAG (`coingecko_etl`) with three sequential tasks: `extract` calls the CoinGecko `/coins/markets` endpoint, `transform` cleans the response with pandas, and `load` upserts into PostgreSQL using `INSERT ... ON CONFLICT DO UPDATE`. Docker Compose runs Airflow's scheduler and webserver on top of a custom image that includes the project's Python dependencies.
 
-## Tech Stack
+## 💡 Learnings
+- Upsert patterns (`ON CONFLICT DO UPDATE`) are essential for idempotent ETL — re-running a daily DAG should update existing rows, not create duplicates
+- Airflow's `LocalExecutor` is sufficient for single-machine pipelines; `CeleryExecutor` only becomes necessary when parallelism across workers is needed
+- Generating a Fernet key before initializing the Airflow database is mandatory — the init service fails silently without it
 
-| Component | Version |
-|-----------|---------|
-| Apache Airflow | 2.9.1 |
-| Python | 3.12 |
-| PostgreSQL | 15 |
-| pandas | latest |
-| psycopg2 | latest |
-
-## Project Structure
-
-```
-etl-airflow-pipeline/
-├── dags/
-│   └── coingecko.py       # ETL DAG: extract → transform → load
-├── plugins/               # Custom Airflow operators (empty, reserved)
-├── logs/                  # Airflow task execution logs (git-ignored)
-├── docker-compose.yml     # Orchestrates postgres, scheduler, webserver
-├── dockerfile             # Airflow image with project dependencies
-├── requirements.txt       # pandas, psycopg2-binary
-├── .env                   # Local environment variables (git-ignored)
-└── .env.example           # Template for .env
-```
-
-## Prerequisites
-
-- [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/install/)
-
-## Getting Started
-
-### 1. Configure environment variables
+## ▶️ Running the project
 
 ```bash
 cp .env.example .env
-```
+# generate Fernet key: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+# set AIRFLOW__CORE__FERNET_KEY and other variables
 
-Open `.env` and set your values. At minimum, generate a Fernet key for Airflow:
-
-```bash
-python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
-```
-
-Paste the output into `AIRFLOW__CORE__FERNET_KEY` in `.env`.
-
-### 2. Start the stack
-
-```bash
 docker-compose up -d
 ```
 
-On the first run, the `airflow-init` service initialises the database and creates the admin user. Wait for it to complete before using the UI.
-
-### 3. Open the Airflow UI
-
-Navigate to [http://localhost:8080](http://localhost:8080) and log in with the credentials from `.env` (defaults: `admin` / `admin`).
-
-### 4. Enable and run the DAG
-
-1. Find `coingecko_etl` in the DAG list.
-2. Toggle it **On**.
-3. Trigger a manual run or wait for the daily schedule (midnight UTC).
-
-### 5. Stop the stack
-
-```bash
-docker-compose down
-```
-
-To also remove volumes (wipes the database):
-
-```bash
-docker-compose down -v
-```
-
-## Environment Variables
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `POSTGRES_USER` | `airflow` | PostgreSQL username |
-| `POSTGRES_PASSWORD` | `airflow` | PostgreSQL password |
-| `POSTGRES_DB` | `coingecko` | Database name |
-| `POSTGRES_HOST` | `postgres` | Hostname (must match the Compose service name) |
-| `AIRFLOW__DATABASE__SQL_ALCHEMY_CONN` | — | Full SQLAlchemy connection string for Airflow metadata |
-| `AIRFLOW__CORE__EXECUTOR` | `LocalExecutor` | Airflow executor type |
-| `AIRFLOW__CORE__FERNET_KEY` | — | Encryption key for sensitive data (**required**) |
-| `AIRFLOW_WWW_USER_USERNAME` | — | Airflow UI username |
-| `AIRFLOW_WWW_USER_PASSWORD` | —| Airflow UI password |
-
-## DAG: `coingecko_etl`
-
-| Property | Value |
-|----------|-------|
-| Schedule | `@daily` (00:00 UTC) |
-| Start date | 2024-01-01 |
-| Catchup | Disabled |
-| Retries | 3 × 5 min delay |
-
-### Tasks
-
-| Task | What it does |
-|------|-------------|
-| `extract` | GET `https://api.coingecko.com/api/v3/coins/markets` — top 10 coins by market cap in USD |
-| `transform` | Selects `id`, `name`, `symbol`, `current_price`, `market_cap`, `total_volume`; adds `fetched_at` timestamp |
-| `load` | Creates `Coins` table if absent; upserts rows keyed on `id`, updating price and volume columns |
-
-## Database Schema
-
-```sql
-CREATE TABLE IF NOT EXISTS Coins (
-    id           TEXT PRIMARY KEY,
-    name         TEXT,
-    symbol       TEXT,
-    current_price NUMERIC,
-    market_cap   NUMERIC,
-    total_volume NUMERIC,
-    fetched_at   TIMESTAMP
-);
-```
+Open the Airflow UI at **http://localhost:8080**, enable the `coingecko_etl` DAG, and trigger a manual run or wait for the daily schedule (midnight UTC).
