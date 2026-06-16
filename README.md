@@ -7,6 +7,8 @@
 ![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)
 ![pandas](https://img.shields.io/badge/pandas-150458?style=for-the-badge&logo=pandas&logoColor=white)
 
+<img width="1579" height="1336" alt="coinGecko-graph" src="https://github.com/user-attachments/assets/78a43f0b-eade-4dd8-9c13-d70ce02ffefa" />
+
 ## Features
 - Daily ingestion of top 10 cryptocurrencies by market cap from the CoinGecko public API
 - pandas transformation: selects relevant columns and adds a `fetched_at` timestamp
