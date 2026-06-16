@@ -1,26 +1,23 @@
 from datetime import datetime, timedelta
-from airflow.decorators import dag, task
+from airflow.sdk import DAG, task
 from requests import get
 import pandas as pd
 import psycopg2
 import os
 
-
-@dag(
-    start_date=datetime(2024, 1, 1),
-    catchup=False,
-    schedule="@daily",
-    default_args={"retries": 3, "retry_delay": timedelta(minutes=5)},
-)
-def coingecko_etl():
-    @task
+with DAG("coinGecko", 
+          start_date=datetime(2024,1,1), 
+          schedule="@daily",
+          catchup=False
+) as dag:
+    @task()
     def extract():
         url = "https://api.coingecko.com/api/v3/coins/markets"
         params = {"vs_currency": "usd", "order": "market_cap_desc", "per_page": 10}
         request = get(url, params=params)
         return request.json()
 
-    @task
+    @task()
     def transform(raw_data):
         columns = [
             "id",
@@ -35,7 +32,7 @@ def coingecko_etl():
         df["fetched_at"] = datetime.now().isoformat()
         return df.to_dict(orient="records")
 
-    @task
+    @task()
     def load(clean_data):
         print(f"Received {len(clean_data)} rows")
         try:
@@ -80,9 +77,5 @@ def coingecko_etl():
         except Exception as e:
             print(f"Error: {e}")
 
-    raw = extract()
-    clean = transform(raw)
-    load(clean)
 
-
-coingecko_etl()
+    extract() >> transform(extract()) >>load(transform(extract()))

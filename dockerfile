@@ -1,6 +1,6 @@
 FROM python:3.12-slim
 
-FROM apache/airflow:2.9.1
+FROM apache/airflow:3.2.2
 
 WORKDIR /app
 
