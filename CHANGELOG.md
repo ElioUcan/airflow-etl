@@ -23,4 +23,4 @@
 - Scheduler `environment` block moved to the shared `&airflow-env` anchor to prevent child services from losing inherited variables.
 
 ### Removed
-- `.env.example` file.
+- `.env.example` first version.
